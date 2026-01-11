@@ -123,15 +123,31 @@ class CPMaskBatchGUI:
         
         success_count = 0
         for i, f in enumerate(files):
+            input_path = os.path.join(input_dir, f)
+            res, err = process_image(input_path, password)
             
-            res, err = process_image(os.path.join(input_dir, f), password)
             if res is not None:
-                ext = os.path.splitext(f)[1] 
-                save_path = os.path.join(output_dir, f)
-
-                result_idx = cv2.imencode(ext, res)[1]
-                result_idx.tofile(save_path)
+                ext = os.path.splitext(f)[1].lower()
                 
+                # --- JPEG系の場合のみ、拡張子を .png に差し替える ---
+                if ext in [".jpg", ".jpeg"]:
+                    save_name = os.path.splitext(f)[0] + ".png"
+                    save_ext = ".png"
+                else:
+                    save_name = f
+                    save_ext = ext
+                
+                save_path = os.path.join(output_dir, save_name)
+
+                # 書き込み (PNGの場合は圧縮による劣化なしの設定)
+                # cv2.imencodeの第3引数で品質を指定
+                if save_ext == ".png":
+                    params = [cv2.IMWRITE_PNG_COMPRESSION, 3] # 0-9 (3が標準的)
+                else:
+                    params = []
+
+                result_data = cv2.imencode(save_ext, res, params)[1]
+                result_data.tofile(save_path)
                 success_count += 1
 
             self.progress["value"] = i + 1
