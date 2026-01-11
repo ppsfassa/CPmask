@@ -5,7 +5,8 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
 def process_image(image_path, password):
-    img = cv2.imread(image_path)
+    n = np.fromfile(image_path, np.uint8)
+    img = cv2.imdecode(n, cv2.IMREAD_COLOR)
     if img is None:
         return None, "読み込み失敗"
 
@@ -73,24 +74,20 @@ class CPMaskBatchGUI:
         self.root.title("CP-MASK フォルダ一括処理ツール")
         self.root.geometry("500x300")
 
-        # パスワード入力
         tk.Label(root, text="パスワード (半角英大文字 1-16文字):").pack(pady=5)
         self.pass_entry = tk.Entry(root, width=30, justify='center')
         self.pass_entry.insert(0, "SAMPLE")
         self.pass_entry.pack(pady=5)
 
-        # フォルダパス表示
         self.dir_path = tk.StringVar(value="処理するフォルダを選択してください")
         tk.Label(root, textvariable=self.dir_path, fg="blue", wraplength=450).pack(pady=10)
         
         btn_select = tk.Button(root, text="フォルダを選択", command=self.select_dir)
         btn_select.pack(pady=5)
 
-        # 進捗バー
         self.progress = ttk.Progressbar(root, orient="horizontal", length=400, mode="determinate")
         self.progress.pack(pady=15)
 
-        # 実行ボタン
         self.btn_run = tk.Button(root, text="一括処理開始", bg="lightgreen", width=20, command=self.run_batch)
         self.btn_run.pack(pady=10)
 
@@ -110,12 +107,10 @@ class CPMaskBatchGUI:
             messagebox.showerror("Error", "パスワードを入力してください。")
             return
 
-        # 出力フォルダの作成
         output_dir = os.path.join(input_dir, "output_cp")
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
-        # 画像ファイルのリストアップ
         extensions = (".png", ".bmp", ".jpg", ".jpeg", ".webp")
         files = [f for f in os.listdir(input_dir) if f.lower().endswith(extensions)]
         
@@ -127,16 +122,18 @@ class CPMaskBatchGUI:
         self.progress["maximum"] = len(files)
         
         success_count = 0
-        for i, filename in enumerate(files):
-            input_path = os.path.join(input_dir, filename)
-            # 出力はすべてPNGまたはBMPを推奨（可逆のため。ここでは元の拡張子を維持）
-            output_path = os.path.join(output_dir, filename)
+        for i, f in enumerate(files):
             
-            result, error = process_image(input_path, password)
-            if result is not None:
-                cv2.imwrite(output_path, result)
+            res, err = process_image(os.path.join(input_dir, f), password)
+            if res is not None:
+                ext = os.path.splitext(f)[1] 
+                save_path = os.path.join(output_dir, f)
+
+                result_idx = cv2.imencode(ext, res)[1]
+                result_idx.tofile(save_path)
+                
                 success_count += 1
-            
+
             self.progress["value"] = i + 1
             self.root.update_idletasks()
 
